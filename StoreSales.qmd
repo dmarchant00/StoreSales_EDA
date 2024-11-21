@@ -6,6 +6,8 @@ editor: visual
 
 ```{r}
 library(readr)
+library(ggplot2)
+library(plotly)
 ```
 
 ```{r}
@@ -16,4 +18,16 @@ test <- read_csv("store-sales-time-series-forecasting/test.csv")
 train <- read_csv("store-sales-time-series-forecasting/train.csv")
 transactions <- read_csv("store-sales-time-series-forecasting/transactions.csv")
 stores <- read_csv("store-sales-time-series-forecasting/stores.csv")
+```
+
+```{r}
+ggplot(stores, aes(x = type, y = store_nbr, fill = type)) +
+  geom_boxplot() +
+  labs(
+    title = "Distribution of Store Numbers by Type",
+    x = "Store Type",
+    y = "Store Number"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
 ```
