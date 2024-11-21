@@ -1,0 +1,19 @@
+---
+title: "StoreSales_EDA"
+format: html
+editor: visual
+---
+
+```{r}
+library(readr)
+```
+
+```{r}
+holidays_events <- read_csv("store-sales-time-series-forecasting/holidays_events.csv")
+oil <- read_csv("store-sales-time-series-forecasting/oil.csv")
+sample_submission <- read_csv("store-sales-time-series-forecasting/sample_submission.csv")
+test <- read_csv("store-sales-time-series-forecasting/test.csv")
+train <- read_csv("store-sales-time-series-forecasting/train.csv")
+transactions <- read_csv("store-sales-time-series-forecasting/transactions.csv")
+stores <- read_csv("store-sales-time-series-forecasting/stores.csv")
+```
