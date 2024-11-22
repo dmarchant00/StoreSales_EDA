@@ -9,6 +9,7 @@ library(readr)
 library(ggplot2)
 library(plotly)
 library(dplyr)
+library(lubridate)
 ```
 
 ```{r}
@@ -23,17 +24,32 @@ stores <- read_csv("store-sales-time-series-forecasting/stores.csv")
 
 ### Train Data
 
-#### Sales Vs. On promotion
+#### Correlation between total sales and total number of items on promotion at that given date
 
 ```{r}
 # Show correlation between sales and on promotion for each type of prodcut
 train_subset <- train %>%
   group_by(family) %>%
-  slice_sample(n = 1000, replace = FALSE) %>% # Randomly select up to 1000 rows per product
+  slice_sample(n = 5000, replace = FALSE) %>% # Randomly select up to 1000 rows per product
   ungroup()
 
 plot_family <- function(family_name) {
   family_data <- subset(train_subset, family == family_name)  # Filter data for the products
+  
+  # Remove bottom 10% of onpromotion values
+  threshold <- quantile(family_data$onpromotion, probs = 0.1, na.rm = TRUE)
+  family_data <- family_data %>%
+    filter(onpromotion > threshold)
+  
+  # Check if there is enough data to proceed
+  if (nrow(family_data) < 2) {
+  message(paste("Skipping family:", family_name, "- Not enough data after filtering"))
+  return(NULL)
+  }
+  
+  # Fit a linear model
+  model <- lm(sales ~ onpromotion, data = family_data)
+  r_squared <- summary(model)$r.squared
   
   ggplot(family_data, aes(x = onpromotion, y = sales)) +
     geom_point(color = "blue", size = 2, alpha = 0.7) +
@@ -42,6 +58,14 @@ plot_family <- function(family_name) {
       title = paste("Correlation between Total Sales and Promotions for", family_name),
       x = "Items Promoted (onpromotion)",
       y = "Total Sales"
+    ) +
+    annotate(
+      "text", 
+      x = max(family_data$onpromotion, na.rm = TRUE) * 0.8, 
+      y = max(family_data$sales, na.rm = TRUE) * 0.9, 
+      label = paste("R² =", round(r_squared, 3)),
+      color = "darkred",
+      size = 5
     ) +
     theme_minimal()
 }
@@ -57,25 +81,31 @@ sales.onpromotion <- lapply(unique_items, function(family) {
 sales.onpromotion
 ```
 
-### Sales for each product compared over store number
+#### Percentage sales for each product compared over store number
 
 ```{r}
-plot_sales_by_family <- function(train, family_type) {
+plot_sales_by_family <- function(train, product_type) {
   # Filter data for the given family type and calculate total sales by store
   filtered_data <- train %>%
-    filter(family == family_type) %>%
     group_by(store_nbr) %>%
-    summarise(total_sales = sum(sales, na.rm = TRUE), .groups = "drop")
+    summarise(total_sales = sum(sales, na.rm = TRUE),
+            product_sales = sum(sales[family == product_type], na.rm = TRUE)) %>%
+    mutate(percentage = product_sales / total_sales * 100) %>%
+    arrange(desc(percentage))
+  
+  top_5_stores <- head(filtered_data, 5)$store_nbr
   
   # Create the ggplot
-  p <- ggplot(filtered_data, aes(x = factor(store_nbr), y = total_sales)) +
-    geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  p <- ggplot(filtered_data, aes(x = factor(store_nbr), y = percentage)) +
+    geom_bar(stat = "identity", aes(fill = store_nbr %in% top_5_stores), color = "black") +
+    scale_fill_manual(values = c("TRUE" = "green", "FALSE" = "steelblue")) +
     labs(
-      title = paste("Total Sales for", family_type, "Family by Store"),
+      title = paste("Percentage of Total Sales for", product_type, "by Store"),
       x = "Store Number",
       y = "Total Sales"
     ) +
-    theme_minimal()
+    theme_minimal() +
+    theme(legend.position = "none")
   
   # Convert to an interactive plotly plot
   ggplotly(p)
@@ -90,26 +120,109 @@ plots <- lapply(unique_families, function(family) {
 plots
 ```
 
-```{r}
-ggplot(holidays_events, aes(x = date, y = type, color = type)) +
-  geom_point(size = 2) +
-  labs(
-    title = "Holidays from 2012 to 2017",
-    x = "Date",
-    y = "Holiday Type"
-  ) +
-  theme_minimal() +
-  theme(legend.position = "none")
-```
+#### Top products sold for each store
 
 ```{r}
-ggplot(stores, aes(x = type, y = store_nbr, fill = type)) +
-  geom_boxplot() +
-  labs(
-    title = "Distribution of Store Numbers by Type",
-    x = "Store Type",
-    y = "Store Number"
-  ) +
+# Top product
+## Find the top product sold for each store
+top_product_store_sales <- train %>%
+  group_by(store_nbr, family) %>%
+  summarise(total_sales = sum(sales, na.rm = TRUE)) %>%
+  arrange(store_nbr, desc(total_sales)) %>%
+  slice(1) %>%
+  ungroup()
+
+## Create a plot showing the highest total sales by family for each store
+x <- ggplot(top_product_store_sales, aes(x = factor(store_nbr), y = total_sales, fill = family)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Highest Product Sales for Each Store",
+       x = "Store Number",
+       y = "Total Sales") +
   theme_minimal() +
-  theme(legend.position = "none")
+  theme(legend.position = "bottom")
+ggplotly(x)
+
+# 2nd Highest Product
+## Find the 2nd highest product sold for each store
+top_product_store_sales <- train %>%
+  group_by(store_nbr, family) %>%
+  summarise(total_sales = sum(sales, na.rm = TRUE)) %>%
+  arrange(store_nbr, desc(total_sales)) %>%
+  slice(2) %>%
+  ungroup()
+
+## Create a plot showing the 2nd highest total sales by family for each store
+x <- ggplot(top_product_store_sales, aes(x = factor(store_nbr), y = total_sales, fill = family)) +
+  geom_bar(stat = "identity") +
+  labs(title = "2nd Highest Product Sales for Each Store",
+       x = "Store Number",
+       y = "Total Sales") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+ggplotly(x)
+
+# 3rd Highest Product
+## Find the 3rd highest product sold for each store
+top_product_store_sales <- train %>%
+  group_by(store_nbr, family) %>%
+  summarise(total_sales = sum(sales, na.rm = TRUE)) %>%
+  arrange(store_nbr, desc(total_sales)) %>%
+  slice(3) %>%
+  ungroup()
+
+## Create a plot showing the 3rdc highest total sales by family for each store
+x <- ggplot(top_product_store_sales, aes(x = factor(store_nbr), y = total_sales, fill = family)) +
+  geom_bar(stat = "identity") +
+  labs(title = "3rd Highest Product Sales for Each Store",
+       x = "Store Number",
+       y = "Total Sales") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+ggplotly(x)
+```
+
+#### Average sales for each product by day of the year
+
+```{r}
+average_sales_by_product <- function(data, family_name) {
+# Convert date to Date type
+train$date <- as.Date(train$date)
+
+# Filter data for the specified product family and remove January 1st
+train_filtered <- train %>%
+  filter(family == family_name) %>%
+  filter(format(date, "%m-%d") != "01-01")
+
+# Extract month and day of the month
+train_filtered <- train_filtered %>%
+  mutate(month_day = format(date, "%m-%d"))
+
+# Calculate average sales for each day of the year
+average_sales <- train_filtered %>%
+  group_by(month_day) %>%
+  summarise(average_sales = mean(sales, na.rm = TRUE)) %>%
+  ungroup()
+
+# Plot time series graph for the specified product family
+p <- ggplot(average_sales, aes(x = as.Date(month_day, format = "%m-%d"), y = average_sales)) +
+  geom_line(color = "blue") +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+  labs(title = paste("Average Sales for", family_name, "by Day of Year"),
+       x = "Month",
+       y = "Average Sales") +
+  theme_minimal()
+
+ggplotly(p)
+}
+
+# Unique product families
+unique_families <- unique(train$family)
+
+# Generate plots for each product family
+sales_plots <- lapply(unique_families, function(family) {
+  average_sales_by_product(train, family)
+})
+
+# Display the first plot as an example
+sales_plots
 ```
