@@ -226,3 +226,92 @@ sales_plots <- lapply(unique_families, function(family) {
 # Display the plots
 sales_plots
 ```
+
+```{r}
+# Convert date column to Date type
+transactions$date <- as.Date(transactions$date)
+
+# Extract the day of the month
+transactions <- transactions %>%
+  mutate(day_of_month = day(date))  # Extract day from date
+
+# Summarize total transactions by day of the month
+transactions_by_day <- transactions %>%
+  group_by(day_of_month) %>%
+  summarise(total_transactions = sum(transactions, na.rm = TRUE))
+
+# Create a plotly plot
+plot_ly(transactions_by_day, x = ~day_of_month, y = ~total_transactions, type = 'scatter', mode = 'lines+markers',
+        marker = list(color = 'rgba(34, 139, 34, .9)'),
+        line = list(color = 'rgba(0, 100, 0, .9)')) %>%
+  layout(title = "Total Transactions by Day of Month",
+         xaxis = list(title = "Day of Month"),
+         yaxis = list(title = "Total Transactions"))
+
+# Convert date column to Date type and extract day of the month
+transactions <- transactions %>%
+  mutate(date = as.Date(date),
+         day_of_month = day(date))
+
+# Filter out the 29th, 30th, and 31st days
+filtered_df <- transactions %>%
+  filter(day_of_month < 29)
+
+# Summarize total transactions by day of the month
+transactions_by_day <- filtered_df %>%
+  group_by(day_of_month) %>%
+  summarise(total_transactions = sum(transactions, na.rm = TRUE))
+
+# Create a plotly plot
+plot_ly(transactions_by_day, x = ~day_of_month, y = ~total_transactions, type = 'scatter', mode = 'lines+markers',
+        marker = list(color = 'rgba(100, 149, 237, .9)'),
+        line = list(color = 'rgba(65, 105, 225, .9)')) %>%
+  layout(title = "Total Transactions by Day of Month (Excluding 29th, 30th, 31st)",
+         xaxis = list(title = "Day of Month"),
+         yaxis = list(title = "Total Transactions"))
+
+# Convert date column to Date type and extract day of the month
+transactions <- transactions %>%
+  mutate(date = as.Date(date),
+         day_of_month = day(date))
+
+# Filter out the 29th, 30th, 31st days and any data from January
+filtered_df <- transactions %>%
+  filter(day_of_month < 29, month(date) != 1)
+
+# Summarize total transactions by day of the month
+transactions_by_day <- filtered_df %>%
+  group_by(day_of_month) %>%
+  summarise(total_transactions = sum(transactions, na.rm = TRUE))
+
+# Create a plotly plot
+plot_ly(transactions_by_day, x = ~day_of_month, y = ~total_transactions, type = 'scatter', mode = 'lines+markers',
+        marker = list(color = 'rgba(255, 99, 71, .9)'),
+        line = list(color = 'rgba(255, 69, 0, .9)')) %>%
+  layout(title = "Total Transactions by Day of Month (Excluding 29th, 30th, 31st and January)",
+         xaxis = list(title = "Day of Month"),
+         yaxis = list(title = "Total Transactions"))
+
+# Convert date column to Date type and extract day of the month
+transactions <- transactions %>%
+  mutate(date = as.Date(date),
+         day_of_month = day(date))
+
+# Filter out the 29th, 30th, 31st days and any data from January and December
+filtered_df <- transactions %>%
+  filter(day_of_month < 29, !month(date) %in% c(1, 12))
+
+# Summarize total transactions by day of the month
+transactions_by_day <- filtered_df %>%
+  group_by(day_of_month) %>%
+  summarise(total_transactions = sum(transactions, na.rm = TRUE))
+
+# Create a plotly plot
+plot_ly(transactions_by_day, x = ~day_of_month, y = ~total_transactions, type = 'scatter', mode = 'lines+markers',
+        marker = list(color = 'rgba(255, 140, 0, .9)'),
+        line = list(color = 'rgba(255, 69, 0, .9)')) %>%
+  layout(title = "Total Transactions by Day of Month (Excluding 29th, 30th, 31st, January, and December)",
+         xaxis = list(title = "Day of Month"),
+         yaxis = list(title = "Total Transactions"))
+
+```
