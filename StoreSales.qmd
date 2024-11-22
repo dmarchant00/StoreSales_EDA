@@ -37,7 +37,7 @@ plot_family <- function(family_name) {
   family_data <- subset(train_subset, family == family_name)  # Filter data for the products
   
   # Remove bottom 10% of onpromotion values
-  threshold <- quantile(family_data$onpromotion, probs = 0.1, na.rm = TRUE)
+  threshold <- max(family_data$onpromotion) / 5
   family_data <- family_data %>%
     filter(onpromotion > threshold)
   
@@ -223,6 +223,6 @@ sales_plots <- lapply(unique_families, function(family) {
   average_sales_by_product(train, family)
 })
 
-# Display the first plot as an example
+# Display the plots
 sales_plots
 ```
