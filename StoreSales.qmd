@@ -1,10 +1,12 @@
 ---
 title: "StoreSales_EDA"
-format: html
+output:
+  html_document:
+    self_contained: false
 editor: visual
 ---
 
-```{r}
+```{r include= FALSE}
 library(readr)
 library(ggplot2)
 library(plotly)
@@ -12,7 +14,7 @@ library(dplyr)
 library(lubridate)
 ```
 
-```{r}
+```{r include = FALSE}
 holidays_events <- read_csv("store-sales-time-series-forecasting/holidays_events.csv")
 oil <- read_csv("store-sales-time-series-forecasting/oil.csv")
 sample_submission <- read_csv("store-sales-time-series-forecasting/sample_submission.csv")
@@ -77,8 +79,8 @@ sales.onpromotion <- lapply(unique_items, function(family) {
   plot_family(family)  # Generate plot for each family
 })
 
-# Display all plots
-sales.onpromotion
+# Display example plot
+sales.onpromotion[[6]]
 ```
 
 #### Percentage sales for each product compared over store number
@@ -112,12 +114,13 @@ plot_sales_by_family <- function(train, product_type) {
 }
 
 unique_families <- unique(train$family)
+
 plots <- lapply(unique_families, function(family) {
   plot_sales_by_family(train, family)
 })
 
 # Display the plot for the first family
-plots
+plots[[1]]
 ```
 
 #### Top products sold for each store
@@ -212,7 +215,6 @@ p <- ggplot(average_sales, aes(x = as.Date(month_day, format = "%m-%d"), y = ave
        y = "Average Sales") +
   theme_minimal()
 
-ggplotly(p)
 }
 
 # Unique product families
@@ -223,9 +225,13 @@ sales_plots <- lapply(unique_families, function(family) {
   average_sales_by_product(train, family)
 })
 
-# Display the plots
-sales_plots
+# Display example plot
+sales_plots[[1]]
 ```
+
+### Transactions
+
+#### Transactions by day of month
 
 ```{r}
 # Convert date column to Date type
@@ -307,11 +313,118 @@ transactions_by_day <- filtered_df %>%
   summarise(total_transactions = sum(transactions, na.rm = TRUE))
 
 # Create a plotly plot
-plot_ly(transactions_by_day, x = ~day_of_month, y = ~total_transactions, type = 'scatter', mode = 'lines+markers',
-        marker = list(color = 'rgba(255, 140, 0, .9)'),
-        line = list(color = 'rgba(255, 69, 0, .9)')) %>%
-  layout(title = "Total Transactions by Day of Month (Excluding 29th, 30th, 31st, January, and December)",
-         xaxis = list(title = "Day of Month"),
-         yaxis = list(title = "Total Transactions"))
+ggplot(transactions_by_day, aes(x = day_of_month, y = total_transactions)) +
+  geom_line(color = "#FF4500", size = .5) + # Use hexadecimal color for the line
+  geom_point(color = "#FF8C00", size = 1.5, alpha = 0.9) + # Hexadecimal color and alpha for the points
+  labs(
+    title = "Total Transactions by Day of Month (Excluding January and December)",
+    x = "Day of Month",
+    y = "Total Transactions"
+  ) +
+  theme_minimal() # Use a clean theme
 
+```
+
+#### Transactions by day of week
+
+```{r}
+
+# Filter data for 2013, 2014, and 2015
+transactions_filtered <- transactions %>%
+  filter(format(date, "%Y") %in% c("2013", "2014", "2015", "2016", "2017")) %>%
+  mutate(day_of_week = weekdays(date), # Add day of the week column
+         year = format(date, "%Y"))    # Add year column
+
+# Calculate average transactions per day of the week for each year
+average_transactions <- transactions_filtered %>%
+  group_by(year, day_of_week) %>%
+  summarize(avg_transactions = mean(transactions), .groups = 'drop')
+
+day_order <- c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
+average_transactions$day_of_week <- factor(average_transactions$day_of_week, levels = day_order)
+
+# Create the scatterplot with lines for each year
+week_series <- ggplot(average_transactions, aes(x = day_of_week, y = avg_transactions, color = year, group = year)) +
+  geom_point(size = 3) +
+  geom_line(size = 1) +
+  labs(title = "Average Transactions per Day of the Week",
+       x = "Day of the Week",
+       y = "Average Transactions",
+       color = "Year") +
+  theme_minimal()
+
+ggplotly(week_series)
+```
+
+#### Transactions by day of year
+
+```{r}
+
+# Filter data for 2013, 2014, and 2015
+transactions_filtered <- transactions %>%
+  filter(format(date, "%Y") %in% c("2013", "2014", "2015", "2016", "2017")) %>%
+  mutate(day_of_year = yday(date), # Add day of the year column (1-365/366)
+         year = format(date, "%Y")) # Add year column
+
+# Calculate average transactions per day of the year for each year
+average_transactions <- transactions_filtered %>%
+  group_by(year, day_of_year) %>%
+  summarize(avg_transactions = mean(transactions), .groups = 'drop')
+
+# Create the plot
+year_series <- ggplot(average_transactions, aes(x = day_of_year, y = avg_transactions, color = year, group = year)) +
+  geom_point(size = 1) +  # Scatterplot with smaller points
+  geom_line(size = 1) +   # Line connecting points
+  labs(title = "Average Transactions Per Day of the Year",
+       x = "Day of the Year",
+       y = "Average Transactions",
+       color = "Year") +
+  theme_minimal()
+
+ggplotly(year_series)
+```
+
+#### Transactions by Store
+
+```{r}
+#Aggregate data by store number and year
+transactions_aggregated <- transactions %>%
+  mutate(year = year(date)) %>%  # Extract the year from the date
+  group_by(store_nbr, year) %>%  # Group by store and year
+  summarize(total_transactions = sum(transactions), .groups = 'drop')
+
+#Create a single stacked bar plot for all stores across different years
+x <- ggplot(transactions_aggregated, aes(x = factor(store_nbr), y = total_transactions, fill = factor(year))) +
+  geom_bar(stat = "identity", position = "stack", width = 1) +  
+  labs(title = "Total Transactions Per Store",
+       x = "Store Number",
+       y = "Total Transactions",
+       fill = "Year") +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_x_discrete(expand = c(0, -1)) 
+
+ggplotly(x)
+```
+
+```{r}
+transactions_aggregated <- transactions %>%
+  group_by(store_nbr) %>%
+  summarize(total_transactions = sum(transactions), .groups = 'drop')
+
+transactions_with_city <- transactions_aggregated %>%
+  left_join(stores, by = "store_nbr")
+
+x <- ggplot(transactions_with_city, aes(x = factor(store_nbr), y = total_transactions, fill = city)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Total Transactions Per Store by City",
+       x = "Store Number",
+       y = "Total Transactions",
+       fill = "City") +
+  theme_minimal() +
+  theme(legend.position = "bottom", 
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplotly(x)
 ```
